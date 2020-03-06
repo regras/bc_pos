@@ -101,19 +101,35 @@ def pk_r(ps, pf, r):
                 if(pj != 0):
                     probK[x].append(pj)
                     countProbK = countProbK + pj
-                if (j == 100 or pj == 0):
+                if (j == 500 or pj == 0):
                     break
                 j = j + 1
         print("prob sum round %f: %f" %(x, countProbK))
         x = x + 1
     return probK
-def numBlockExpected(pk,n,r):
-    numBlock = 0
-    for i in range(0,r + 1):
-        numBlock = numBlock + ((Decimal(1) - (pk[i][0] + pk[i][1])) * n)
-    return numBlock 
 
-def probFork(pk,pnf,psn,r):
+def numExpectedRound(pk,n,r,psn):
+    k = 1
+    meanRound = 0
+    if(r > 0):
+        while (k <= len(pk[r-1]) - 1):
+            pi = 0 
+            for i in range(0, k):
+                numComb = Combinations(k,i)
+                pi = pi + numComb * (psn ** (k - i)) * ((1 - psn) ** i)
+
+            pi = Decimal(1) / pi
+            pi = pi * pk[r-1][k]
+            meanRound = meanRound + pi
+            k = k + 1
+        #P0_r-1
+        meanRound = meanRound + (pk[r-1][0] * (Decimal(1) / psn)) 
+    else:
+        meanRound = Decimal(1) / psn
+
+    return meanRound
+
+def probFork(pk,pnf,r):
     print("pnf")
     print(pnf)
     print("1-pnf")
@@ -131,12 +147,12 @@ def probFork(pk,pnf,psn,r):
                 numComb = Combinations(k,i)
                 pf_i = pf_i + numComb * (((1 - pnf) ** (k-i)) * (pnf ** i))
 
-                numComb = Combinations(k,i)
-                numRound_i = numRound_i + numComb * ((psn) ** (k-i)) * ((1 - psn) ** i)
+                #numComb = Combinations(k,i)
+                #numRound_i = numRound_i + numComb * ((psn) ** (k-i)) * ((1 - psn) ** i)
            
             pf_i = pk[r-1][k] * pf_i
             pf_r = pf_r + pf_i
-            NumRound = NumRound + pk[r-1][k] * int(math.ceil(float(1)/float(numRound_i)))
+            #NumRound = NumRound + pk[r-1][k] * int(math.ceil(float(1)/float(numRound_i)))
             k = k + 1
 
         #start P0_r-1 part. This part depends of the r_2's success. If the r_2 have nothing success
@@ -172,16 +188,16 @@ def probFork(pk,pnf,psn,r):
 
         pf0 = pf0 + (1 - pnf) * p0'''
         pf0 = (1-pnf) * pk[r-1][0]
-        NumRound0 = int(math.ceil(float(1)/float(psn))) * pk[r-1][0]
+        #NumRound0 = int(math.ceil(float(1)/float(psn))) * pk[r-1][0]
              
         #So the fork's probability of the round r is pf0 + pf_r
         pf_r = pf_r + pf0
-        NumRound = NumRound + NumRound0
+        #NumRound = NumRound + NumRound0
     else:
         pf_r = 1 - pnf
-        NumRound = int(math.ceil(float(1)/float(psn)))
+        #NumRound = int(math.ceil(float(1)/float(psn)))
 
-    return pf_r, NumRound
+    return pf_r
 
 def main():
 
@@ -211,20 +227,18 @@ def main():
     print(pnf)
 
     #calc success probability to n nodes in one chain
-    pns = 1 - (1 - ps) ** parameter.NODES
-    print(pns)
+    psn = 1 - (1 - ps) ** parameter.NODES
+    print(psn)
     while(r != -1):
         r = input("Digite (r) para probabilidade de fork:")
         if(r >= 0):
-            Pfork, NumRound = probFork(pk,pnf, pns, r)
-            numBlock = numBlockExpected(pk,parameter.NODES,r)
+            Pfork = probFork(pk,pnf,r)
+            numRound = numExpectedRound(pk,parameter.NODES,r,psn)
             print("Fork probability on round : %d" % r)
             print(Pfork)
             print("Expected round number between two blocks:")
-            print(NumRound)
-            print("Expected total block:")
-            print(numBlock)
-    
+            print(numRound)
+            
     sys.exit()
 
 if __name__ == '__main__':
