@@ -80,7 +80,7 @@ def validateExpectedRound(block, lastBlock):
         return False
         
 def validateExpectedLocalRound(block, leaf_round, leaf_arrive_time):
-    calculated_rounds = int(math.floor((int(block.arrive_time) - int(leaf_arrive_time))/parameter.timeout))
+    calculated_rounds = int(math.floor((float(block.arrive_time) - float(leaf_arrive_time))/parameter.timeout))
     #if(calculated_rounds == 0 and ((int(block.arrive_time) - int(leaf_arrive_time)) < parameter.timeout)):
     #    calculated_rounds = 1
 

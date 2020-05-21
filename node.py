@@ -595,8 +595,8 @@ class Node(object):
             #except (zmq.ContextTerminated):
             #    break
     def Round(self):
-        nowTime = int(time.mktime(datetime.datetime.now().timetuple()))
-        r = int(math.floor((nowTime - int(self.leafchains.getLastArrivedTime())) / parameter.timeout)) 
+        nowTime = time.mktime(datetime.datetime.now().timetuple())
+        r = int(math.floor((float(nowTime) - float(self.leafchains.getLastArrivedTime())) / parameter.timeout)) 
         #if(r == 0 and (nowTime - int(self.leafchains.getLastArrivedTime()) < parameter.timeout)):
         #    r = 1
         round = int(self.leafchains.getRoundMainChain()) + r 
@@ -615,8 +615,8 @@ class Node(object):
 
                 leafs = self.leafchains.getLeafs()
                 for k,l in list(leafs.iteritems()):
-                    nowTime = int(time.mktime(datetime.datetime.now().timetuple()))
-                    r = int(math.floor((nowTime - int(l[0].leaf_arrivedTime)) / parameter.timeout))
+                    nowTime = time.mktime(datetime.datetime.now().timetuple())
+                    r = int(math.floor((float(nowTime) - float(l[0].leaf_arrivedTime)) / parameter.timeout))
                     #if(r == 0 and ((nowTime - int(l[0].leaf_arrivedTime)) < parameter.timeout)):
                     #    r = 1
                     #elif((nowTime - int(l[0].leaf_arrivedTime)) > (r * parameter.timeout)):
@@ -686,7 +686,7 @@ class Node(object):
                 self.semaphore.release()
                 
                 #startNewRound
-                startTime = int(time.mktime(datetime.datetime.now().timetuple()))
+                startTime = time.mktime(datetime.datetime.now().timetuple())
                 print("Call's time of the Generate Block Function")
                 print(startTime)
 
@@ -742,7 +742,7 @@ class Node(object):
                 #print(l[0].leaf_lastTimeTried)
                 #print("prevLastTimeTried")
                 #print(l[0].leaf_prevLastTimeTried)
-                nowTime = int(time.mktime(datetime.datetime.now().timetuple()))
+                nowTime = time.mktime(datetime.datetime.now().timetuple())
                 if(l[0].leaf_node != node and (l[0].leaf_lastId == (l[0].leaf_index - 1))):
                     #print("ENTROU MINE BLOCO ANTERIOR")
                     #print("entrou lastId")
@@ -752,7 +752,7 @@ class Node(object):
                     #print("entrou l[0].leaf_prevLastTimeTried")
                     #print(l[0].leaf_prevLastTimeTried)
                     if(l[0].leaf_prevLastTimeTried):
-                        if((nowTime - int(l[0].leaf_prevLastTimeTried)) >= parameter.timeout):
+                        if((float(nowTime) - float(l[0].leaf_prevLastTimeTried)) >= parameter.timeout):
                                 r = int(math.floor((nowTime - int(l[0].leaf_prev_arrivedTime)) / parameter.timeout))
                                 round = l[0].leaf_prev_round + r
                                 #print("round MINE BLOCK ANTERIOR")
@@ -776,7 +776,7 @@ class Node(object):
                                 #if(findMine):
                                 #    break
                 if(not status):
-                    if(((nowTime - int(l[0].leaf_lastTimeTried)) >= parameter.timeout) and ((l[0].leaf_lastId == l[0].leaf_index)
+                    if(((float(nowTime) - float(l[0].leaf_lastTimeTried)) >= parameter.timeout) and ((l[0].leaf_lastId == l[0].leaf_index)
                     or (l[0].leaf_lastId <= (l[0].leaf_index - 2)))):
                         #print("entrou lastTriedMine")
                         #print(l[0].leaf_lastTimeTried)

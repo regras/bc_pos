@@ -9,7 +9,7 @@ THRESHOLD = 2
 # Time in seconds
 timeout = 10
 # difficulty
-difficulty = 6
+difficulty = 4
 
 ### Test Variables ###
 num_block_created = 0
