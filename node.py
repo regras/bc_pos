@@ -116,6 +116,9 @@ class Node(object):
         #the delay uses a poison distribution with mean 8 seconds
         self.msg_arrivals = {}  
         self.inserted = {}
+        self.msg_arrivals_out_order = {}
+        self.inserted_out_order = {}
+
         self.delay = exponential_latency(parameter.AVG_LATENCY)
 
     # Node as client
@@ -232,7 +235,7 @@ class Node(object):
         if(not self.threadSync.is_set() and not self.e.is_set()):
             self.e.set()
             nowTime = time.mktime(datetime.datetime.now().timetuple())
-            currentRound = int(round((float(nowTime) - float(parameter.GEN_ARRIVE_TIME))/parameter.timeout,0))
+            currentRound = int(math.floor((float(nowTime) - float(parameter.GEN_ARRIVE_TIME))/parameter.timeout))
             self.stable = sqldb.setStableBlocks(currentRound)
             self.e.clear()
 
@@ -252,9 +255,12 @@ class Node(object):
                 block = message[0]
                 cons = message[1]
                 node = message[2]
-                stake = message[3]
-                round = message[4]
+                stake = message[3]                 
                 subuser = 0
+                
+                nowTime = time.mktime(datetime.datetime.now().timetuple())
+                round = int(math.floor((float(nowTime) - float(parameter.GEN_ARRIVE_TIME))/parameter.timeout))
+
                 status,roundBlock = sqldb.verifyRoundBlock(block.index + 1, round)
                 if(not status):
                     new_hash = None
@@ -264,7 +270,7 @@ class Node(object):
                 if(new_hash and self.synced):
                     self.e.set() #semaforo
                     self.t.set() #semaforo listen function
-                    arrive_time = int(time.mktime(datetime.datetime.now().timetuple()))
+                    arrive_time = float(time.mktime(datetime.datetime.now().timetuple()))
                     new_block = Block(block.index + 1, block.hash, round, node, arrive_time, new_hash, tx, subuser)
                     self.psocket.send_multipart([consensus.MSG_BLOCK, self.ipaddr, pickle.dumps(new_block, 2)])
                     status = chaincontrol.addBlockLeaf(new_block) 
@@ -423,7 +429,7 @@ class Node(object):
                     # serialize
                         b = pickle.loads(block_recv)
                         ##logging.info("Got block %s miner %s" % (b.hash, ip))
-                        b.arrive_time = int(time.mktime(datetime.datetime.now().timetuple()))
+                        b.arrive_time = float(time.mktime(datetime.datetime.now().timetuple()))
                         if(self.msg_arrivals):
                             pos = int(max(self.msg_arrivals)+1)
                             self.msg_arrivals[pos] = []
@@ -479,9 +485,42 @@ class Node(object):
                                     self.semaphore.release()
                                     if(status):
                                         sqldb.setLogBlock(b, 1)
+                                        if(self.msg_arrivals_out_order):
+                                            for j, out in list(self.msg_arrivals_out_order.iteritems()):
+                                                if(self.synced):
+                                                    b = out[0]
+                                                    ip = out[1]
+                                                    prevBlock = self.commitBlock([b.prev_hash],t=14)
+                                                    self.semaphore.release()
+                                                    remove = False
+                                                    if(prevBlock):
+                                                        print("FIND PLACE OUT OF ORDER BLOCK")
+                                                        remove = True
+                                                        if(validations.validateExpectedLocalRound(b) and validations.validateChallenge(b,self.stake)
+                                                        and b.round >= prevBlock.round):
+                                                            status = self.commitBlock(message=[b],t=2)
+                                                            self.semaphore.release()
+                                                            if(status):
+                                                                sqldb.setLogBlock(b, 1)                                                       
+                                                    if(remove):
+                                                        if(not self.inserted_out_order):
+                                                            self.inserted_out_order[0] = []
+                                                            self.inserted_out_order[0].append(j)
+                                                        else:
+                                                            pos = int(max(self.inserted_out_order) + 1)
+                                                            self.inserted_out_order[pos] = []
+                                                            self.inserted_out_order[pos].append(j)
                             else:
                                 print("NOT SYNC")
-                                print(b.round)
+                                if(self.msg_arrivals_out_order):
+                                    pos = int(max(self.msg_arrivals_out_order)+1)
+                                    self.msg_arrivals_out_order[pos] = []
+                                    self.msg_arrivals_out_order[pos].append(b)
+                                    self.msg_arrivals_out_order[pos].append(ip)
+                                else:
+                                    self.msg_arrivals_out_order[0] = []
+                                    self.msg_arrivals_out_order[0].append(b)
+                                    self.msg_arrivals_out_order[0].append(ip)
                                 
                              
                 self.f.set()
@@ -489,6 +528,8 @@ class Node(object):
                 for msg in self.inserted:
                     del self.msg_arrivals[self.inserted[msg][0]]
                 self.inserted = {}
+                for out in self.inserted_out_order:
+                    del self.msg_arrivals_out_order[self.inserted_out_order[out][0]]
                 
             time.sleep(0.1)    
             
@@ -537,14 +578,14 @@ class Node(object):
             if(self.synced):
                 #commited = self.commitBlock(t=1)
                 #self.semaphore.release()
-                self.commitBlock(t=9)
-                self.semaphore.release()
-
+                #startNewRound
                 nowTime = float(time.mktime(datetime.datetime.now().timetuple()))
                 self.stake = self.balance
-                #startNewRound
+                
                 if((nowTime - prevTime) >= parameter.timeout):
-                    currentRound = int(round(((nowTime - prevTime)/parameter.timeout),0)) + prevRound
+                    self.commitBlock(t=9)
+                    self.semaphore.release()
+                    currentRound = int(math.floor(((nowTime - float(parameter.GEN_ARRIVE_TIME))/parameter.timeout))) + prevRound
                     prevTime = nowTime
                     prevRound = currentRound 
                     self.generateNewblock(currentRound,self.node,self.stake,cons)

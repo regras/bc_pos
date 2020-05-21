@@ -1,0 +1,60 @@
+Starting mining...
+Starting mining...
+Command failed
+Command failed
+Exception in thread uniTest:
+Traceback (most recent call last):
+  File "/usr/lib/python2.7/threading.py", line 801, in __bootstrap_inner
+    self.run()
+  File "/usr/lib/python2.7/threading.py", line 754, in run
+    self.__target(*self.__args, **self.__kwargs)
+  File "/home/martins/bc_pos_priority_hash_absolute_round/uni_test.py", line 30, in timetocreateblocks
+    quantityBlocks = node.commitBlock(message=[lastBlockSimulation],t=5)
+  File "node.py", line 328, in commitBlock
+    quantityBlocks = sqldb.quantityofBlocks(message[0])
+  File "/home/martins/bc_pos_priority_hash_absolute_round/sqldb.py", line 1126, in quantityofBlocks
+    cursor.execute("SELECT COUNT(*) FROM localChains WHERE stable = 1 and id > '%d'" % (lastBlockSimulation))
+OperationalError: no such table: localChains
+
+Exception in thread uniTest:
+Traceback (most recent call last):
+  File "/usr/lib/python2.7/threading.py", line 801, in __bootstrap_inner
+    self.run()
+  File "/usr/lib/python2.7/threading.py", line 754, in run
+    self.__target(*self.__args, **self.__kwargs)
+  File "/home/martins/bc_pos_priority_hash_absolute_round/uni_test.py", line 30, in timetocreateblocks
+    quantityBlocks = node.commitBlock(message=[lastBlockSimulation],t=5)
+  File "node.py", line 328, in commitBlock
+    quantityBlocks = sqldb.quantityofBlocks(message[0])
+  File "/home/martins/bc_pos_priority_hash_absolute_round/sqldb.py", line 1126, in quantityofBlocks
+    cursor.execute("SELECT COUNT(*) FROM localChains WHERE stable = 1 and id > '%d'" % (lastBlockSimulation))
+OperationalError: no such table: localChains
+
+Exception in thread uniTest:
+Traceback (most recent call last):
+  File "/usr/lib/python2.7/threading.py", line 801, in __bootstrap_inner
+    self.run()
+  File "/usr/lib/python2.7/threading.py", line 754, in run
+    self.__target(*self.__args, **self.__kwargs)
+  File "/home/martins/bc_pos_priority_hash_absolute_round/uni_test.py", line 30, in timetocreateblocks
+    quantityBlocks = node.commitBlock(message=[lastBlockSimulation],t=5)
+  File "node.py", line 328, in commitBlock
+    quantityBlocks = sqldb.quantityofBlocks(message[0])
+  File "/home/martins/bc_pos_priority_hash_absolute_round/sqldb.py", line 1126, in quantityofBlocks
+    cursor.execute("SELECT COUNT(*) FROM localChains WHERE stable = 1 and id > '%d'" % (lastBlockSimulation))
+OperationalError: no such table: localChains
+
+Exception in thread uniTest:
+Traceback (most recent call last):
+  File "/usr/lib/python2.7/threading.py", line 801, in __bootstrap_inner
+    self.run()
+  File "/usr/lib/python2.7/threading.py", line 754, in run
+    self.__target(*self.__args, **self.__kwargs)
+  File "/home/martins/bc_pos_priority_hash_absolute_round/uni_test.py", line 30, in timetocreateblocks
+    quantityBlocks = node.commitBlock(message=[lastBlockSimulation],t=5)
+  File "node.py", line 328, in commitBlock
+    quantityBlocks = sqldb.quantityofBlocks(message[0])
+  File "/home/martins/bc_pos_priority_hash_absolute_round/sqldb.py", line 1126, in quantityofBlocks
+    cursor.execute("SELECT COUNT(*) FROM localChains WHERE stable = 1 and id > '%d'" % (lastBlockSimulation))
+OperationalError: no such table: localChains
+

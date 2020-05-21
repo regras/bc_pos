@@ -82,13 +82,15 @@ def validateExpectedRound(block, lastBlock):
         
 def validateExpectedLocalRound(block):
     nowTime = time.mktime(datetime.datetime.now().timetuple())
-    expected_round = int(round((float(nowTime) - float(parameter.GEN_ARRIVE_TIME))/parameter.timeout,0))
+    expected_round = int(math.floor((float(block.arrive_time) - float(parameter.GEN_ARRIVE_TIME))/parameter.timeout))
     #if(calculated_rounds == 0 and ((int(block.arrive_time) - int(leaf_arrive_time)) < parameter.timeout)):
     #    calculated_rounds = 1
 
     #elif((int(block.arrive_time) - int(leaf_arrive_time)) > (calculated_rounds * parameter.timeout)):
     #    calculated_rounds = calculated_rounds + 1    
-
+    print("ARRIVE_TIME", block.arrive_time)
+    print("CALC TIME", nowTime)
+    print("ROUND DIF", int(math.floor((float(nowTime) - float(block.arrive_time))/parameter.timeout)))
     #expected_round = leaf_round + calculated_rounds
     print("BLOCK ROUND", block.round)
     print("EXPECTED_ROUND", expected_round)
