@@ -30,7 +30,7 @@ def updateChainView(idChain, block):
         return True
     elif(not sqldb.blockIsMaxIndex(block.index)):
         if(sqldb.verifyRoundBlock(block.index,block.round)):
-            if(sqldb.blockIsPriority(block.index,block.hash)):
+            if(sqldb.blockIsPriority(block.index,block.proof_hash)):
                 print("ISLEAF")
                 print("NOT MAXINDEX")
                 sqldb.removeAllBlocksHigh(block.index, block.hash)

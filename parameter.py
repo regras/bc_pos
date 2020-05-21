@@ -7,7 +7,7 @@ GEN_ARRIVE_TIME = 1573486728
 THRESHOLD = 2
 
 # Time in seconds
-timeout = 10
+timeout = 5
 # difficulty
 difficulty = 4
 
@@ -26,3 +26,8 @@ roundTolerancy = 2
 TEST = 100
 
 NODES = 2
+
+tal = 1.5
+
+W = 1000
+

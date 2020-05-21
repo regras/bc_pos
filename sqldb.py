@@ -53,7 +53,7 @@ def dbConnect():
         fork integer,
         stable integer,
         subuser integer,
-        lastTimeTried text,
+        proof_hash text,
         PRIMARY KEY (id,idChain))""")
 
     #cursor.execute("""CREATE TABLE IF NOT EXISTS log_mine (
@@ -85,6 +85,7 @@ def dbConnect():
         node text,
         prev_hash text,
         hash,
+        proof_hash text,
         status integer,
         UNIQUE (idAutoNum,hash))""")
      
@@ -454,13 +455,14 @@ def setLogBlock(b, accepted):
     cursor = db.cursor()
     if(b):
         try:
-            cursor.execute('INSERT INTO log_block (id, round, arrive_time, node, prev_hash, hash, status) VALUES (?,?,?,?,?,?,?)',(
+            cursor.execute('INSERT INTO log_block (id, round, arrive_time, node, prev_hash, hash, proof_hash, status) VALUES (?,?,?,?,?,?,?,?)',(
                 b.__dict__['index'],
                 b.__dict__['round'],
                 b.__dict__['arrive_time'],
                 b.__dict__['node'],
                 b.__dict__['prev_hash'],
                 b.__dict__['hash'],
+                b.__dict__['proof_hash'],
                 accepted))
             
         except sqlite3.IntegrityError:
@@ -621,7 +623,7 @@ def writeChainLeaf(idChain,b):
                 '0',
                 '0',
                 b.__dict__['subuser'],
-                b.__dict__['lastTimeTried']
+                b.__dict__['proof_hash']
                 ))
     except sqlite3.IntegrityError:
         logger.warning('db insert duplicated block in the same chain')
@@ -642,16 +644,16 @@ def getIdChain(blockHash):
     except sqlite3.IntegrityError:
         print("impossible to return chain id")
 
-def blockIsPriority(blockIndex,blockHash):
+def blockIsPriority(blockIndex,proof_hash):
     db = sqlite3.connect(databaseLocation)
     cursor = db.cursor()
     try:
-        cursor.execute('select hash from localChains where id = %d' %blockIndex)
+        cursor.execute('select proof_hash from localChains where id = %d' %blockIndex)
         queries = cursor.fetchall()
         db.close()
         if(queries):
             for query in queries:
-                if(int(query[0],16) < int(blockHash,16)):
+                if(int(query[0],16) < int(proof_hash,16)):
                     return False
         return True
     except sqlite3.IntegrityError:

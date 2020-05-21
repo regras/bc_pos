@@ -1,13 +1,33 @@
 import consensus
 import sqldb
 import math
+import hashlib
 import parameter
 import time
 import datetime
-def validateChallenge(block, stake):
-    target = consensus.Consensus().target
-    if int(block.hash,16) < target:
-        return True
+
+def validateChallenge(block, userStake):
+    print("userStake: ", userStake)
+    print("block.subuser: ", block.subuser)
+    if(int(userStake) >= block.subuser):
+        p = float(parameter.tal) / parameter.W
+        P_i = 1 - ((1 - p) ** int(userStake))
+        D = (-1) * float(math.log(P_i,2))
+        target = 2**(256-D)
+
+         #block hash
+        b_header = str(block.prev_hash) + str(block.mroot)
+        block_hash = hashlib.sha256(b_header).hexdigest()
+
+        #proof hash
+        p_header = str(block.node) + str(block.round) + str(block_hash) + str(userStake) #candidate header
+        hash_result = hashlib.sha256(p_header).hexdigest()
+        print("hash_result: ", hash_result)
+        print("block.proof_hash: ", block.proof_hash)
+        print("target: ", target)
+        if int(hash_result,16) < target and hash_result == block.proof_hash:
+            print("HASH VALID")
+            return True
     return False
 
 def validateRound(block, bc):
@@ -79,10 +99,14 @@ def validateExpectedRound(block, lastBlock):
         return True
     else:
         return False
-        
+
+def validateProofHash(block,user_stake,cons):
+    blockHash = cons.POS(lastBlock_hash=block.prev_hash, tx=block.merkle)
+    
+
 def validateExpectedLocalRound(block):
     nowTime = time.mktime(datetime.datetime.now().timetuple())
-    expected_round = int(round((float(nowTime) - float(parameter.GEN_ARRIVE_TIME))/parameter.timeout,0))
+    expected_round = int(math.floor((float(block.arrive_time) - float(parameter.GEN_ARRIVE_TIME))/parameter.timeout))
     #if(calculated_rounds == 0 and ((int(block.arrive_time) - int(leaf_arrive_time)) < parameter.timeout)):
     #    calculated_rounds = 1
 
@@ -90,8 +114,12 @@ def validateExpectedLocalRound(block):
     #    calculated_rounds = calculated_rounds + 1    
 
     #expected_round = leaf_round + calculated_rounds
-    print("BLOCK ROUND", block.round)
-    print("EXPECTED_ROUND", expected_round)
+    if(block.round >= expected_round):
+        print("ARRIVE_TIME", block.arrive_time)
+        print("CALC TIME", nowTime)
+        print("ROUND DIF", int(math.floor((float(nowTime) - float(block.arrive_time))/parameter.timeout)))
+        print("BLOCK ROUND", block.round)
+        print("EXPECTED_ROUND", expected_round)
     #print("Expected Round")
     #print(leaf_round)
     #print("Block Round")

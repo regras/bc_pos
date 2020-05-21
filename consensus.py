@@ -50,40 +50,41 @@ def handleMessages(bc, messages):
 
 class Consensus:
 
-    def __init__(self):
+    def __init__(self,stake):
         self.type = "PoS"
-        
-        i = 1
-        exp = 255
-        self.target = (2**(256) - 1)
-        while i <= parameter.difficulty:
-            self.target = self.target - (2**(exp))
-            i = i + 1
-            exp = exp - 1
-
+        p = float(parameter.tal) / parameter.W
+        P_i = 1 - ((1 - p)**int(stake))
+        D = (-1) * float(math.log(P_i,2))
+        self.target = float(2**(256 - D))
+        print("sucess prob: ", p)
+        print("P_i: ", P_i)
+        print("D_i: ", D)
         print("consensus")
         print('result of consensus target {}'.format(self.target))
             
     def getTarget(self):
         return self.target
-        
-    def POS(self, lastBlock_hash, round, node, stake, skip = None, subuser=0):
+    
+    def POS(self, block):
         """ Find nonce for PoW returning block information """
         # chr simplifies merkle root and add randomness
-        tx = chr(random.randint(1,100))
 
-        c_header = str(lastBlock_hash) + str(round) + str(node) + str(subuser) # candidate header
+        #block hash
+        b_header = str(block.prev_hash) + str(block.mroot)
+        block_hash = hashlib.sha256(b_header).hexdigest()
+        
+        #proof hash
+        p_header = str(block.node) + str(block.round) + str(block.hash) + str(block.subuser) # candidate header
+        hash_result = hashlib.sha256(p_header).hexdigest()
 
-        hash_result = hashlib.sha256(c_header).hexdigest()
         #print(hash_result)
         #print(format(int(hash_result, 16),"0256b"))
         #print(format(self.target,"0256b"))
-
         if int(hash_result,16) < self.target:
             # print("OK")
-            return hash_result, tx
+            return hash_result
 
-        return False, tx
+        return False
 
     #def generateNewblock(self, lastBlock, node, stake, skip=False):
     #    """ Loop for PoS in case of solve challenge, returning new Block object """
@@ -107,7 +108,7 @@ class Consensus:
     #        r = r + 1
             # print(r)
 
-        return None
+        #return None
 
     def rawConsensusInfo(self):
         return {'difficulty': parameter.difficulty, 'type': self.type}

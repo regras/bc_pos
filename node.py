@@ -24,6 +24,7 @@ import parameter
 import os
 import uni_test
 import socket
+import random
 
 #TODO blockchain class and database decision (move to only db solution?)
 #TODO peer management and limit (use a p2p library - pyre, kademlia?)
@@ -39,11 +40,11 @@ class Node(object):
 
     ctx = None
 
-    def __init__(self, ipaddr='127.0.0.1', port=9000):
+    def __init__(self, ipaddr='127.0.0.1', port=9000, stake=1):
         self.ipaddr = ipaddr
         self.port = int(port)
         self.balance = 1
-        self.stake = 0
+        self.stake = int(stake)
         self.synced = True
         self.peers = deque()
         self.bchain = None
@@ -116,6 +117,8 @@ class Node(object):
         #the delay uses a poison distribution with mean 8 seconds
         self.msg_arrivals = {}  
         self.inserted = {}
+        self.msg_arrivals_out_order = {}
+        self.inserted_out_order = {}
         self.delay = exponential_latency(parameter.AVG_LATENCY)
 
     # Node as client
@@ -252,24 +255,26 @@ class Node(object):
                 block = message[0]
                 cons = message[1]
                 node = message[2]
-                stake = message[3]
-                round = message[4]
-                subuser = 0
+
+                nowTime = time.mktime(datetime.datetime.now().timetuple())
+                round = int(math.floor((float(nowTime) - float(parameter.GEN_ARRIVE_TIME))/parameter.timeout))
+
                 status,roundBlock = sqldb.verifyRoundBlock(block.index + 1, round)
-                if(not status):
+                if(not status or round <= block.round):
                     new_hash = None
                 else:
-                    new_hash, tx = cons.POS(lastBlock_hash=block.hash,round=round,node=node,stake=stake,subuser=subuser)
+                    arrive_time = int(time.mktime(datetime.datetime.now().timetuple()))                   
+                    tx = chr(random.randint(1,100))
+                    new_block = Block(index=block.index + 1, prev_hash=block.hash, round=round, node=node, arrive_time=arrive_time, tx=tx, subuser=self.stake)
+                    new_hash = cons.POS(new_block)
                 
                 if(new_hash and self.synced):
                     self.e.set() #semaforo
                     self.t.set() #semaforo listen function
-                    arrive_time = int(time.mktime(datetime.datetime.now().timetuple()))
-                    new_block = Block(block.index + 1, block.hash, round, node, arrive_time, new_hash, tx, subuser)
-                    self.psocket.send_multipart([consensus.MSG_BLOCK, self.ipaddr, pickle.dumps(new_block, 2)])
                     status = chaincontrol.addBlockLeaf(new_block) 
                     if(status):
                         sqldb.setLogBlock(new_block, 1)
+                        self.psocket.send_multipart([consensus.MSG_BLOCK, self.ipaddr, pickle.dumps(new_block, 2), str(self.stake)])
                         #self.semaphore.release()
                         return True,arrive_time
                     #else:
@@ -415,7 +420,7 @@ class Node(object):
             #print(messages[0])
             
             try:
-                    msg, ip, block_recv = self.subsocket.recv_multipart()
+                    msg, ip, block_recv, userStake = self.subsocket.recv_multipart()
 
                     if(ip != self.ipaddr):
     ##                self.f.clear()
@@ -429,10 +434,12 @@ class Node(object):
                             self.msg_arrivals[pos] = []
                             self.msg_arrivals[pos].append(b)
                             self.msg_arrivals[pos].append(ip)
+                            self.msg_arrivals[pos].append(int(userStake))
                         else:
                             self.msg_arrivals[0] = []
                             self.msg_arrivals[0].append(b)
                             self.msg_arrivals[0].append(ip)
+                            self.msg_arrivals[0].append(int(userStake))
 
     ##                self.f.set()
 
@@ -455,7 +462,8 @@ class Node(object):
                 for i, msg in list(self.msg_arrivals.iteritems()):
                     if(self.synced):
                         b = msg[0]
-                        ip = msg[1]     
+                        ip = msg[1]    
+                        userStake = msg[2] 
                         if(not self.inserted):
                             self.inserted[0] = []
                             self.inserted[0].append(i)
@@ -473,15 +481,52 @@ class Node(object):
                             prevBlock = self.commitBlock([b.prev_hash],t=14)
                             self.semaphore.release()
                             if(prevBlock):
-                                if(validations.validateExpectedLocalRound(b) and validations.validateChallenge(b,self.stake)
-                                and b.round >= prevBlock.round):
+                                if(validations.validateExpectedLocalRound(b) and validations.validateChallenge(b,userStake)
+                                and b.round > prevBlock.round):
                                     status = self.commitBlock(message = [b],t = 2)
                                     self.semaphore.release()
                                     if(status):
                                         sqldb.setLogBlock(b, 1)
+                                        if(self.msg_arrivals_out_order):
+                                            for j, out in list(self.msg_arrivals_out_order.iteritems()):
+                                                if(self.synced):
+                                                    b = out[0]
+                                                    ip = out[1]
+                                                    userStake = msg[2]
+                                                    prevBlock = self.commitBlock([b.prev_hash],t=14)
+                                                    self.semaphore.release()
+                                                    remove = False
+                                                    if(prevBlock):
+                                                        print("FIND PLACE OUT OF ORDER BLOCK")
+                                                        remove = True
+                                                        if(validations.validateExpectedLocalRound(b) and validations.validateChallenge(b,userStake)
+                                                        and b.round >= prevBlock.round):
+                                                            status = self.commitBlock(message=[b],t=2)
+                                                            self.semaphore.release()
+                                                            if(status):
+                                                                sqldb.setLogBlock(b, 1)                                                       
+                                                    if(remove):
+                                                        if(not self.inserted_out_order):
+                                                            self.inserted_out_order[0] = []
+                                                            self.inserted_out_order[0].append(j)
+                                                        else:
+                                                            pos = int(max(self.inserted_out_order) + 1)
+                                                            self.inserted_out_order[pos] = []
+                                                            self.inserted_out_order[pos].append(j)
                             else:
                                 print("NOT SYNC")
-                                print(b.round)
+                                if(self.msg_arrivals_out_order):
+                                    pos = int(max(self.msg_arrivals_out_order)+1)
+                                    self.msg_arrivals_out_order[pos] = []
+                                    self.msg_arrivals_out_order[pos].append(b)
+                                    self.msg_arrivals_out_order[pos].append(ip)
+                                    self.msg_arrivals_out_order[pos].append(userStake)
+                                else:
+                                    self.msg_arrivals_out_order[0] = []
+                                    self.msg_arrivals_out_order[0].append(b)
+                                    self.msg_arrivals_out_order[0].append(ip)
+                                    self.msg_arrivals_out_order[0].append(userStake)
+                            
                                 
                              
                 self.f.set()
@@ -541,7 +586,6 @@ class Node(object):
                 self.semaphore.release()
 
                 nowTime = float(time.mktime(datetime.datetime.now().timetuple()))
-                self.stake = self.balance
                 #startNewRound
                 if((nowTime - prevTime) >= parameter.timeout):
                     currentRound = int(round(((nowTime - prevTime)/parameter.timeout),0)) + prevRound
@@ -568,7 +612,7 @@ class Node(object):
                 print(block.index + 1)
                 print("trying round:")
                 print(round)
-                replyMine, triedTime = self.commitBlock(message=[block,cons,self.node,self.stake,round],t=0)
+                replyMine, triedTime = self.commitBlock(message=[block,cons,self.node],t=0)
                 self.semaphore.release()
         self.e.clear() 
         
@@ -1047,6 +1091,8 @@ def main():
                         help='Specify listen IP address', default='127.0.0.1')
     parser.add_argument('-p', '--port', metavar='port', dest='port',
                         help='Specify listen port', default=9000)
+    parser.add_argument('-s', '--stake', metavar='stake', dest='stake',
+                        help='Specify stake user', default=1)
     parser.add_argument('--peers', dest='peers', nargs='*',
                         help='Specify peers IP addresses', default=[])
     parser.add_argument('--miner', dest='miner', action='store_true',
@@ -1062,6 +1108,7 @@ def main():
     if cfgparser.read(args.config_file):
         args.peers = cfgparser.get('node','ip')
         args.port = int(cfgparser.get('node','port'))
+        args.stake = int(cfgparser.get('node','stake'))
         args.peers = cfgparser.get('node','peers').split('\n')
         args.miner = cfgparser.getboolean('node','miner')
         args.diff = int(cfgparser.get('node','diff'))
@@ -1076,10 +1123,11 @@ def main():
 
     
     #sqldb.databaseLocation = 'blocks/blockchain.db'
-    cons = consensus.Consensus()
-    
-    n = Node(args.ipaddr, args.port)
+    cons = consensus.Consensus(args.stake)
+    n = Node(args.ipaddr, args.port, args.stake)
     n.threads = []
+
+       
     # Connect to predefined peers
     if args.peers:
         iplist = args.peers if isinstance(args.peers, list) else [args.peers]
@@ -1164,7 +1212,7 @@ def main():
     #os.system('sudo python uni_test.py -n %s' % text)
 
     #call timetocreateblocks function to automatic simulation
-    time.sleep(1)
+    time.sleep(120)
     uniTest_thread = threading.Thread(name='uniTest', target=uni_test.timetocreateblocks, kwargs={'node':n})
     uniTest_thread.start()
 
